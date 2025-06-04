@@ -5,7 +5,27 @@ from config import Config
 class LLMAnalyzer:
     def __init__(self):
         genai.configure(api_key=Config.GEMINI_API_KEY)
-        self.model = genai.GenerativeModel('gemini-pro')
+        # Updated to use current Gemini model names
+        try:
+            # Try the latest models first
+            self.model = genai.GenerativeModel('gemini-1.5-flash')
+        except Exception:
+            try:
+                # Fallback to other available models
+                self.model = genai.GenerativeModel('gemini-1.5-pro')
+            except Exception:
+                try:
+                    self.model = genai.GenerativeModel('gemini-pro-latest')
+                except Exception:
+                    # Last resort - try to list available models and use the first one
+                    models = genai.list_models()
+                    available_models = [model.name for model in models if 'generateContent' in model.supported_generation_methods]
+                    if available_models:
+                        model_name = available_models[0].split('/')[-1]  # Extract just the model name
+                        self.model = genai.GenerativeModel(model_name)
+                        print(f"Using model: {model_name}")
+                    else:
+                        raise Exception("No compatible Gemini models found")
     
     def analyze_person_data(self, name: str, company: str, search_results: List[Dict]) -> Dict:
         """Analyze person data and extract key insights"""
@@ -31,7 +51,39 @@ class LLMAnalyzer:
         """
         
         try:
-            response = self.model.generate_content(prompt)
+            # Add safety settings and generation config
+            generation_config = {
+                "temperature": 0.3,
+                "top_p": 0.8,
+                "top_k": 40,
+                "max_output_tokens": 2048,
+            }
+            
+            safety_settings = [
+                {
+                    "category": "HARM_CATEGORY_HARASSMENT",
+                    "threshold": "BLOCK_MEDIUM_AND_ABOVE"
+                },
+                {
+                    "category": "HARM_CATEGORY_HATE_SPEECH", 
+                    "threshold": "BLOCK_MEDIUM_AND_ABOVE"
+                },
+                {
+                    "category": "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+                    "threshold": "BLOCK_MEDIUM_AND_ABOVE"
+                },
+                {
+                    "category": "HARM_CATEGORY_DANGEROUS_CONTENT",
+                    "threshold": "BLOCK_MEDIUM_AND_ABOVE"
+                }
+            ]
+            
+            response = self.model.generate_content(
+                prompt,
+                generation_config=generation_config,
+                safety_settings=safety_settings
+            )
+            
             return {
                 'analysis': response.text,
                 'type': self._determine_person_type(response.text)
@@ -67,7 +119,38 @@ class LLMAnalyzer:
         """
         
         try:
-            response = self.model.generate_content(prompt)
+            generation_config = {
+                "temperature": 0.3,
+                "top_p": 0.8,
+                "top_k": 40,
+                "max_output_tokens": 2048,
+            }
+            
+            safety_settings = [
+                {
+                    "category": "HARM_CATEGORY_HARASSMENT",
+                    "threshold": "BLOCK_MEDIUM_AND_ABOVE"
+                },
+                {
+                    "category": "HARM_CATEGORY_HATE_SPEECH",
+                    "threshold": "BLOCK_MEDIUM_AND_ABOVE"
+                },
+                {
+                    "category": "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+                    "threshold": "BLOCK_MEDIUM_AND_ABOVE"
+                },
+                {
+                    "category": "HARM_CATEGORY_DANGEROUS_CONTENT",
+                    "threshold": "BLOCK_MEDIUM_AND_ABOVE"
+                }
+            ]
+            
+            response = self.model.generate_content(
+                prompt,
+                generation_config=generation_config,
+                safety_settings=safety_settings
+            )
+            
             return {
                 'analysis': response.text,
                 'type': self._determine_company_type(response.text)
@@ -103,7 +186,38 @@ class LLMAnalyzer:
         """
         
         try:
-            response = self.model.generate_content(prompt)
+            generation_config = {
+                "temperature": 0.3,
+                "top_p": 0.8,
+                "top_k": 40,
+                "max_output_tokens": 2048,
+            }
+            
+            safety_settings = [
+                {
+                    "category": "HARM_CATEGORY_HARASSMENT",
+                    "threshold": "BLOCK_MEDIUM_AND_ABOVE"
+                },
+                {
+                    "category": "HARM_CATEGORY_HATE_SPEECH",
+                    "threshold": "BLOCK_MEDIUM_AND_ABOVE"
+                },
+                {
+                    "category": "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+                    "threshold": "BLOCK_MEDIUM_AND_ABOVE"
+                },
+                {
+                    "category": "HARM_CATEGORY_DANGEROUS_CONTENT",
+                    "threshold": "BLOCK_MEDIUM_AND_ABOVE"
+                }
+            ]
+            
+            response = self.model.generate_content(
+                prompt,
+                generation_config=generation_config,
+                safety_settings=safety_settings
+            )
+            
             return {'insights': response.text}
         except Exception as e:
             return {'insights': f"Error analyzing social content: {e}"}
@@ -146,3 +260,13 @@ class LLMAnalyzer:
             return 'startup'
         else:
             return 'company'
+    
+    def list_available_models(self):
+        """Helper method to list available Gemini models"""
+        try:
+            models = genai.list_models()
+            print("Available Gemini models:")
+            for model in models:
+                print(f"- {model.name} (supports: {model.supported_generation_methods})")
+        except Exception as e:
+            print(f"Error listing models: {e}")
